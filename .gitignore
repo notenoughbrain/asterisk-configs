@@ -1,0 +1,3 @@
+# ignore local editor files
+*.swp
+*.swo
