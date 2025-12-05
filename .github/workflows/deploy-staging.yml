@@ -1,0 +1,33 @@
+name: Deploy Staging
+on:
+  push:
+    branches: [ develop ]
+    paths: ['etc/asterisk/staging/**']
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install asterisklint
+      run: pip3 install asterisklint
+    - name: Syntax check
+      run: asterisklint dialplan-check etc/asterisk/staging/extensions.conf
+    - name: Deploy
+      uses: burnett01/rsync-deployments@master
+      with:
+        username: ${{ secrets.STAGING_USER }}
+        key: ${{ secrets.STAGING_SSH_KEY }}
+        host: ${{ secrets.STAGING_HOST }}
+        path: "/tmp/asterisk-staging/"
+        local_path: "etc/asterisk/staging/"
+        rsync_options: "--chown=asterisk:asterisk -avz --delete"
+    - name: Apply config
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.STAGING_HOST }}
+        username: ${{ secrets.STAGING_USER }}
+        key: ${{ secrets.STAGING_SSH_KEY }}
+        script: |
+          cp -rf /tmp/asterisk-staging/* /etc/asterisk/
+          chown -R asterisk:asterisk /etc/asterisk/
+          asterisk -rx "core reload"
