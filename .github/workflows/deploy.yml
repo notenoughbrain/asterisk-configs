@@ -1,0 +1,48 @@
+
+name: Asterisk CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  syntax-check:
+    name: Проверка синтаксиса Asterisk
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Клонируем репозиторий
+        uses: actions/checkout@v3
+
+      - name: Устанавливаем Asterisk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y asterisk
+
+      - name: Проверяем синтаксис
+        run: |
+          sudo asterisk -x "dialplan reload"
+          sudo asterisk -x "sip reload" || true
+
+  deploy:
+    name: Деплой на staging
+    needs: syntax-check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Клонируем репозиторий
+        uses: actions/checkout@v3
+
+      - name: Настраиваем SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Синхронизируем конфиги
+        run: |
+          rsync -avz --delete ./configs/ root@${{ secrets.STAGING_HOST }}:/etc/asterisk/
+
