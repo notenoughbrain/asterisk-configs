@@ -1,33 +1,22 @@
-name: Deploy Staging
+- name: Deploy configs
+  run: |
+    sudo rsync -avz configs/ /etc/asterisk/
+    sudo systemctl reload asterisk
+
 on:
   push:
-    branches: [ develop ]
-    paths: ['etc/asterisk/staging/**']
+    branches: ["main"]
+
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Install asterisklint
-      run: pip3 install asterisklint
-    - name: Syntax check
-      run: asterisklint dialplan-check etc/asterisk/staging/extensions.conf
-    - name: Deploy
-      uses: burnett01/rsync-deployments@master
-      with:
-        username: ${{ secrets.STAGING_USER }}
-        key: ${{ secrets.STAGING_SSH_KEY }}
-        host: ${{ secrets.STAGING_HOST }}
-        path: "/tmp/asterisk-staging/"
-        local_path: "etc/asterisk/staging/"
-        rsync_options: "--chown=asterisk:asterisk -avz --delete"
-    - name: Apply config
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.STAGING_HOST }}
-        username: ${{ secrets.STAGING_USER }}
-        key: ${{ secrets.STAGING_SSH_KEY }}
-        script: |
-          cp -rf /tmp/asterisk-staging/* /etc/asterisk/
-          chown -R asterisk:asterisk /etc/asterisk/
-          asterisk -rx "core reload"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy configs
+        run: |
+          rsync -avz configs/ /etc/asterisk/
+          systemctl reload asterisk
+
